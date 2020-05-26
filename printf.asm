@@ -19,6 +19,11 @@ global _start
                 syscall
 %endmacro
 
+percent:
+                mov     ah, '%'
+                call    ascii
+                ret
+
 ;========================================================================================
 ;Expects: ah - ascii to print
 ;
@@ -98,32 +103,9 @@ bin:
                 push    rdx
 
                 xor     rcx, rcx
-                xor     bx, bx
-                
-.add:
-                shr     rax, 1
-                jc      .print1
-
-                mov     bh, '0'
-                jmp     .continue
-
-.print1:
-                mov     bh, '1'
-        
-.continue:
-                inc     rcx
-                push    bx
-                inc     sp
-
-                cmp     rax, 0
-                jne     .add
-
-                PRINT
-
-                pop     rdx
-                pop     rcx
-
-                ret
+                mov     r8, 1
+                mov     byte [shift], 1
+                jmp     rephex
 ;================================================================================================
 ;Expects: rax - number to print
 ;
@@ -136,29 +118,9 @@ oct:
                 push    rdx
 
                 xor     rcx, rcx
-
-.rep:
-                mov     rbx, 111b
-                and     rbx, rax
-
-                shr     rax, 3
-
-                add     bx, '0'
-                shl     bx, 8
-                push    bx
-
-                inc     rcx
-                inc     sp
-
-                cmp     rax, 0
-                jne     .rep
-
-                PRINT
-
-                pop     rdx
-                pop     rcx
-
-                ret
+                mov     r8, 111b
+                mov     byte [shift], 3
+                jmp     rephex
 ;================================================================================================
 ;Expects: rax - number to print
 ;
@@ -172,13 +134,19 @@ hex:
 
                 xor     rcx, rcx
                 xor     rbx, rbx
+                mov     r8, 1111b             ;max hex
+                mov     byte [shift], 4       ;lb(16)
 
-.rephex:
-                mov     rbx, 1111b
+rephex:
+                mov     rbx, r8
                 and     rbx, rax
 
-                shr     rax, 4
                 shl     bx, 8
+                mov     bl, cl
+                mov     cl, byte [shift]
+                shr     rax, cl
+                mov     cl, bl
+                          
 
                 cmp     bh, 10
                 jb      .number
@@ -195,14 +163,14 @@ hex:
                 inc     rcx
 
                 cmp     rax, 0
-                jne     .rephex
+                jne     rephex
 
                 PRINT
 
                 pop     rdx
                 pop     rcx
                 ret
-                ;================================================================================================
+;================================================================================================
 ;Expects: rax - number to print
 ;
 ;Returns: none
@@ -255,84 +223,45 @@ printf:
                 je      .end
 
                 cmp     byte [rdx], '%'
-                je      .string
+                je      .special
 
                 mov     ah, byte [rdx]
                 call    ascii
                 
-                jmp     .return
-
-.string:
-                inc     rdx
-
-                cmp     byte [rdx], 's'
-                jne     .percent
-
-                pop     rax
-                call    string
-
-                jmp     .return
-
-.percent:
-                cmp     byte [rdx], '%'
-                jne     .char
-
-                mov     ah, '%'
-                call    ascii
-
-                jmp     .return
-
-.char:
-                cmp     byte [rdx], 'c'
-                jne     .bin
-
-                pop     rax
-                shl     ax, 8
-                call    ascii
-
-                jmp     .return
-
-.bin:
-                cmp     byte [rdx], 'b'
-                jne     .oct
-
-                pop     rax
-                call    bin
-
-                jmp     .return
-
-.oct:
-                cmp     byte [rdx], 'o'
-                jne     .hex
-
-                pop     rax
-                call    oct
-
-                jmp     .return
-
-.hex:
-                cmp     byte [rdx], 'h'
-                jne     .dec
-
-                pop     rax
-                call    hex
-
-                jmp     .return
-
-.dec:
-                cmp     byte [rdx], 'd'
-                jne     .end
-
-                pop     rax
-                call    dec
-
-.return:
                 inc     rdx
                 jmp     .next
 
+.special:
+                inc     rdx
+		        movzx   r10, byte [rdx]
+                cmp     r10, '%'
+                jne     .not_percent
+                push    '%'
+
+.not_percent:
+                pop     rax
+
+                call    qword[jmp_table + r10*8 - '%'*8]
+                inc     rdx
+                jmp     .next
+                
+                
 .end:
                 push    rcx
                 ret
+
+jmp_table:
+                dq  percent
+                times 60 dq 0
+                dq  bin
+                dq  ascii
+                dq  dec
+                times 3 dq 0
+                dq  hex
+                times 6 dq 0
+                dq  oct
+                times 3 dq 0
+                dq  string
 
 _start:
                 mov     rdx, output
@@ -354,6 +283,9 @@ _start:
 
 section .data
 
-output          db 'I am %s who has skipped %d (%hh, %oo, %bb) days after %cEDline so now %s', 13, 10, '$'
+
+output          db 'I am %s who %% has skipped %d (%hh, %oo, %bb) days after %cEDline so now %s', 13, 10, '$'
 argument        db "a very lazy guy", '$'
 apology         db 'I am apologizing for misrespecting cats', '$'
+tst             db '%%', '$'
+shift           db      0
