@@ -1,5 +1,5 @@
 # printf function
-Assembler implementation of printf function
+x86-64 assembly language implementation of printf function supporting the formats listed below.
 # Supports
 | Specificator | Function | Requires |
 |--------------|----------|----------|
@@ -10,3 +10,5 @@ Assembler implementation of printf function
 | %h | Hex output | 4-byte integer |
 | %s | String output | Offset to string |
 | %% | Percent output | none |
+# Remark
+In C language %h is used for the output of short integers whereas %x is used for the hex output of ints.
