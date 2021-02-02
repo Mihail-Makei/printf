@@ -10,5 +10,6 @@ x86-64 assembly language implementation of printf function supporting the format
 | %h | Hex output | 4-byte integer |
 | %s | String output | Offset to string |
 | %% | Percent output | none |
-# Remark
-In C language %h is used for the output of short integers whereas %x is used for the hex output of ints.
+# Remarks
+ - In C language %h is used for the output of short integers whereas %x is used for the hex output of ints.
+ - printf.asm is a compact version of copypast.asm
